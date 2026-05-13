@@ -1,0 +1,27 @@
+{
+  "name": "tally-data-extractor",
+  "version": "1.0.0",
+  "description": "Full Tally company data extractor via XML API + custom TDL collections",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "build": "pkg . --target node18-win-x64 --output tally-extractor.exe"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "chalk": "^4.1.2",
+    "fs-extra": "^11.2.0",
+    "ora": "^5.4.1",
+    "xlsx": "^0.18.5",
+    "xml2js": "^0.6.2"
+  },
+  "pkg": {
+    "targets": [
+      "node18-win-x64"
+    ],
+    "assets": [
+      "config.json",
+      "output/**/*"
+    ]
+  }
+}

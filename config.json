@@ -1,0 +1,13 @@
+{
+  "tally": {
+    "host": "localhost",
+    "port": 9000
+  },
+  "company": "",
+  "fromDate": "20240401",
+  "toDate":   "20250331",
+  "batchSize": 5000,
+  "outputDir": "./output",
+  "retryAttempts": 3,
+  "retryDelayMs": 2000
+}
