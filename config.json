@@ -5,7 +5,7 @@
   },
   "company": "",
   "fromDate": "20240401",
-  "toDate":   "20250331",
+  "toDate":   "20240402",
   "batchSize": 5000,
   "outputDir": "./output",
   "retryAttempts": 3,

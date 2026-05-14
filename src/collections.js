@@ -203,10 +203,13 @@ const PAYROLL_VOUCHER_TYPES = [
 const FINANCIAL_REPORTS = [
   { name: 'trial_balance',     reportId: 'Trial Balance'  },
   { name: 'balance_sheet',     reportId: 'Balance Sheet'  },
-  { name: 'profit_loss',       reportId: 'Profit & Loss'  },
   { name: 'stock_summary',     reportId: 'Stock Summary'  },
   { name: 'cash_flow',         reportId: 'Cash Flow'      },
 ];
+
+const FINANCIAL_REPORT_PL = [
+    { name: 'profit_loss',       reportId: 'Profit & Loss'  },
+]
 
 module.exports = {
   ACCOUNTING_MASTERS,
@@ -217,4 +220,5 @@ module.exports = {
   VOUCHER_TYPES,
   PAYROLL_VOUCHER_TYPES,
   FINANCIAL_REPORTS,
+  FINANCIAL_REPORT_PL
 };

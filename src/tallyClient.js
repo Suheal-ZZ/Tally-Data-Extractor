@@ -1,13 +1,13 @@
-const axios = require('axios');
-const {escapeXML, buildEnvelope} = require('./utils/helper')
-let TALLY_URL = 'http://localhost:9000';
+const axios = require("axios");
+const { escapeXML, buildEnvelope } = require("./utils/helper");
+let TALLY_URL = "http://localhost:9000";
 
-function init(host = 'localhost', port = 9000) {
+function init(host = "localhost", port = 9000) {
   TALLY_URL = `http://${host}:${port}`;
 }
 
 function normalizeXMLValue(value) {
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     return value.trim();
   }
 
@@ -15,49 +15,45 @@ function normalizeXMLValue(value) {
     return normalizeXMLValue(value[0]);
   }
 
-  if (value && typeof value === 'object') {
-    if ('_' in value) {
+  if (value && typeof value === "object") {
+    if ("_" in value) {
       return normalizeXMLValue(value._);
     }
   }
 
-  return String(value || '').trim();
+  return String(value || "").trim();
 }
 
 function normalizeCompanyName(companyName) {
   const normalized = normalizeXMLValue(companyName);
 
   if (!normalized) {
-    throw new Error('Invalid company name');
+    throw new Error("Invalid company name");
   }
 
   return normalized;
 }
 
-
 function buildFetchXML(fields = []) {
-  return fields
-    .map(field => `<FETCH>${escapeXML(field)}</FETCH>`)
-    .join('\n');
+  return fields.map((field) => `<FETCH>${escapeXML(field)}</FETCH>`).join("\n");
 }
 
 async function post(xml) {
   try {
     const response = await axios.post(TALLY_URL, xml, {
       headers: {
-        'Content-Type': 'text/xml; charset=utf-8',
+        "Content-Type": "text/xml; charset=utf-8",
       },
-      responseType: 'text',
+      responseType: "text",
       timeout: 120000,
       maxBodyLength: Infinity,
       maxContentLength: Infinity,
     });
-
     return response.data;
   } catch (err) {
     if (err.response) {
       throw new Error(
-        `Tally HTTP ${err.response.status}\n${String(err.response.data).slice(0, 1000)}`
+        `Tally HTTP ${err.response.status}\n${String(err.response.data).slice(0, 1000)}`,
       );
     }
 
@@ -97,7 +93,7 @@ async function getOpenCompanies() {
     </STATICVARIABLES>
   </DESC>
 </BODY>
-`
+`,
   );
 
   return post(xml);
@@ -106,12 +102,12 @@ async function getOpenCompanies() {
 async function fetchStandardCollection(
   collectionType,
   companyName,
-  fields = []
+  fields = [],
 ) {
   const normalizedCompany = normalizeCompanyName(companyName);
   const safeCollectionType = normalizeXMLValue(collectionType);
   const safeCompany = escapeXML(normalizedCompany);
-  const collectionName = `My${safeCollectionType.replace(/\s+/g, '')}Coll`;
+  const collectionName = `My${safeCollectionType.replace(/\s+/g, "")}Coll`;
   const fetchXML = buildFetchXML(fields);
   const xml = buildEnvelope(
     `
@@ -140,47 +136,73 @@ async function fetchStandardCollection(
 
   </DESC>
 </BODY>
-`
+`,
   );
 
   return post(xml);
 }
 
-async function fetchVouchers(
-  companyName,
-  fromDate,
-  toDate,
-  voucherType = ''
-) {
-  const normalizedCompany = normalizeCompanyName(companyName);
-  const safeCompany = escapeXML(normalizedCompany);
-  const voucherFilter = voucherType
-    ? `<SVVOUCHERTYPE>${escapeXML(voucherType)}</SVVOUCHERTYPE>`
-    : '';
-  const xml = buildEnvelope(
-    `
-<HEADER>
-  <VERSION>1</VERSION>
-  <TALLYREQUEST>Export</TALLYREQUEST>
-  <TYPE>Data</TYPE>
-  <ID>Day Book</ID>
-</HEADER>
-`,
-    `
-<BODY>
-  <DESC>
-    <STATICVARIABLES>
-      <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
-      <SVCURRENTCOMPANY>${safeCompany}</SVCURRENTCOMPANY>
-      <SVFROMDATE TYPE="Date">${fromDate}</SVFROMDATE>
-      <SVTODATE TYPE="Date">${toDate}</SVTODATE>
-      <EXPLODEFLAG>Yes</EXPLODEFLAG>
-      ${voucherFilter}
-    </STATICVARIABLES>
-  </DESC>
-</BODY>
-`
-  );
+async function fetchVouchers(companyName, fromDate, toDate, voucherType = "") {
+  const safeCompany = escapeXML(normalizeCompanyName(companyName));
+  const safeType = escapeXML(voucherType);
+
+  const colName = voucherType
+    ? `Vchr_${safeType.replace(/\s+/g, "_")}`
+    : "VoucherAll";
+
+  const filterBlock = voucherType
+    ? `
+            <FILTERS>${colName}Filter</FILTERS>`
+    : "";
+
+  const filterSystem = voucherType
+    ? `
+          <SYSTEM TYPE="Formulae" NAME="${colName}Filter">
+            $VoucherTypeName = "${safeType}"
+          </SYSTEM>`
+    : "";
+
+  const xml = `
+<ENVELOPE>
+  <HEADER>
+    <VERSION>1</VERSION>
+    <TALLYREQUEST>Export</TALLYREQUEST>
+    <TYPE>Collection</TYPE>
+    <ID>${colName}</ID>
+  </HEADER>
+  <BODY>
+    <DESC>
+      <STATICVARIABLES>
+        <SVFROMDATE>${fromDate}</SVFROMDATE>
+        <SVTODATE>${toDate}</SVTODATE>
+        <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+        <SVCURRENTCOMPANY>${safeCompany}</SVCURRENTCOMPANY>
+      </STATICVARIABLES>
+      <TDL>
+        <TDLMESSAGE>
+          <COLLECTION NAME="${colName}" ISMODIFY="No">
+            <TYPE>Voucher</TYPE>
+            <FETCH>
+              Date,
+              VoucherTypeName,
+              VoucherNumber,
+              PartyLedgerName,
+              Amount,
+              Narration,
+              GUID,
+              MasterId,
+              VoucherKey,
+              IsOptional,
+              AlterID,
+              EffectiveDate,
+              RemoteID
+            </FETCH>${filterBlock}
+          </COLLECTION>${filterSystem}
+        </TDLMESSAGE>
+      </TDL>
+    </DESC>
+  </BODY>
+</ENVELOPE>`.trim();
   return post(xml);
 }
 
@@ -189,12 +211,10 @@ async function fetchCustomTDLCollection(
   tdlType,
   fields = [],
   companyName,
-  extraFilters = ''
+  extraFilters = "",
 ) {
   const normalizedCompany = normalizeCompanyName(companyName);
-  const safeCollectionName = escapeXML(
-    normalizeXMLValue(collectionName)
-  );
+  const safeCollectionName = escapeXML(normalizeXMLValue(collectionName));
   const safeTDLType = normalizeXMLValue(tdlType);
   const safeCompany = escapeXML(normalizedCompany);
   const fetchXML = buildFetchXML(fields);
@@ -219,27 +239,20 @@ async function fetchCustomTDLCollection(
         <COLLECTION NAME="${safeCollectionName}">
           <TYPE>${safeTDLType}</TYPE>
           ${fetchXML}
-          ${extraFilters || ''}
+          ${extraFilters || ""}
         </COLLECTION>
       </TDLMESSAGE>
     </TDL>
   </DESC>
 </BODY>
-`
+`,
   );
   return post(xml);
 }
 
-async function fetchReport(
-  reportName,
-  companyName,
-  fromDate,
-  toDate
-) {
+async function fetchReport(reportName, companyName, fromDate, toDate) {
   const normalizedCompany = normalizeCompanyName(companyName);
-  const safeReport = escapeXML(
-    normalizeXMLValue(reportName)
-  );
+  const safeReport = escapeXML(normalizeXMLValue(reportName));
 
   const safeCompany = escapeXML(normalizedCompany);
   const xml = buildEnvelope(
@@ -263,7 +276,37 @@ async function fetchReport(
     </STATICVARIABLES>
   </DESC>
 </BODY>
-`
+`,
+  );
+  return post(xml);
+}
+
+async function fetchPLReport(reportName, companyName, fromDate, toDate) {
+  console.log(reportName, companyName, fromDate, toDate)
+
+  const normalizedCompany = normalizeCompanyName(companyName);
+  const safeReport = escapeXML(normalizeXMLValue(reportName));
+  const safeCompany = escapeXML(normalizedCompany);
+
+  const xml = buildEnvelope(
+    `
+  <HEADER>
+    <VERSION>1</VERSION>
+    <TALLYREQUEST>Export</TALLYREQUEST>
+    <TYPE>Data</TYPE>
+    <ID>Profit and Loss</ID>
+  </HEADER>
+  <BODY>`,`
+    <DESC>
+      <STATICVARIABLES>
+        <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+        <SVCURRENTCOMPANY>Venkateshwara Traders</SVCURRENTCOMPANY>
+        <SVFROMDATE>20240401</SVFROMDATE>
+        <SVTODATE>20240430</SVTODATE>
+      </STATICVARIABLES>
+    </DESC>
+  </BODY>
+`,
   );
   return post(xml);
 }
@@ -280,4 +323,5 @@ module.exports = {
   fetchVouchers,
   fetchCustomTDLCollection,
   fetchReport,
+  fetchPLReport
 };
